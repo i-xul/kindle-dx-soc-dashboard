@@ -50,6 +50,13 @@ The current update method uses USB mass storage.
 After updating, the Kindle must enter sleep mode before the refreshed dashboard is displayed.
 Fully automatic refresh is planned as future work.
 
+## Lessons Learned
+
+- Kindle DX USB networking was unreliable on this specific firmware/device combination.
+- Raspberry Pi OS Bullseye proved significantly more stable than newer Bookworm releases for this embedded use case.
+- E-paper UI design requires much larger spacing and simpler layouts than traditional displays.
+- USB mass-storage based updates turned out to be more reliable than attempting direct SSH control of the Kindle.
+
 ## Status
 
 Working prototype.
