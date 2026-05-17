@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Kindle DX SOC Dashboard
 
 A repurposed Amazon Kindle DX Graphite used as an e-paper SOC-style dashboard for monitoring self-hosted Raspberry Pi infrastructure.
