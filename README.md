@@ -38,7 +38,11 @@ dashboard.png
         | USB mass storage
         v
 Kindle DX Graphite screensaver
+```
 
+## 📸 Preview
+
+![Kindle DX Dashboard](images/dashboard-preview.jpg)
 
 ## Current Limitations
 Kindle USBNetwork/SSH was tested but not working reliably on this device.
