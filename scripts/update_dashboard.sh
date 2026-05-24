@@ -11,6 +11,11 @@ cd "$PROJECT_DIR"
 
 python3 dashboard.py
 
+if ! ping -c 1 -W 3 192.168.2.2 >/dev/null 2>&1; then
+    echo "Kindle is not reachable at 192.168.2.2. Skipping refresh."
+    exit 0
+fi
+
 scp -i "$KINDLE_KEY" dashboard.png "$KINDLE_HOST:$KINDLE_SCREEN_DIR/"
 
 STATE=$(ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "lipc-get-prop com.lab126.powerd state" | tr -d '\r')
