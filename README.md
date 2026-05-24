@@ -94,6 +94,31 @@ fsp on /mnt/us type fuse.fsp
 
 These mountpoints appear to be directly related to the Kindle framework's screensaver handling.
 
+## Fully Automated Screensaver Refresh
+
+The Kindle dashboard refresh process is now fully automated over SSH.
+
+The Raspberry Pi 3:
+
+1. Generates a new dashboard image with Python/Pillow
+2. Transfers the image directly to the Kindle over SCP
+3. Detects the current Kindle power state through `lipc`
+4. Triggers Kindle power button events through `powerd_test`
+
+### Important behavior
+
+The Kindle DX firmware only refreshes the active screensaver image during a screensaver state transition.
+
+This means that when the Kindle is already in screensaver mode, the refresh process performs:
+
+```text
+screensaver -> wake -> screensaver
+```
+
+to force the Kindle framework to reload the updated image.
+
+This behavior appears to be related to proprietary Lab126 framework caching and e-paper refresh handling.
+
 ## 📸 Preview
 
 ![Kindle DX Dashboard](images/dashboard-preview.jpg)
