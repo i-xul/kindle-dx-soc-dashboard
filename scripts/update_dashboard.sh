@@ -2,34 +2,32 @@
 
 set -e
 
-KINDLE_DEV="/dev/sda1"
-MOUNT_POINT="/mnt/kindle"
 PROJECT_DIR="/home/hmasi/kindle-dashboard"
+KINDLE_HOST="root@192.168.2.2"
+KINDLE_KEY="/home/hmasi/.ssh/id_rsa"
+KINDLE_SCREEN_DIR="/mnt/us/linkss/screensavers"
 
 cd "$PROJECT_DIR"
 
 python3 dashboard.py
 
-if [ ! -b "$KINDLE_DEV" ]; then
-    echo "Kindle device not found at $KINDLE_DEV"
-    echo "Reconnect Kindle USB cable or wake/reconnect the device, then run again."
-    exit 1
+scp -i "$KINDLE_KEY" dashboard.png "$KINDLE_HOST:$KINDLE_SCREEN_DIR/"
+
+STATE=$(ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "lipc-get-prop com.lab126.powerd state" | tr -d '\r')
+
+echo "Kindle power state: $STATE"
+
+if [ "$STATE" = "active" ]; then
+    ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
+    echo "Kindle moved to screensaver mode."
+elif [ "$STATE" = "screenSaver" ]; then
+    ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
+    sleep 3
+    ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
+    echo "Kindle refreshed screensaver mode."
+else
+    echo "Unknown Kindle power state: $STATE"
+    echo "Not toggling power button."
 fi
 
-sudo mkdir -p "$MOUNT_POINT"
-
-if ! mountpoint -q "$MOUNT_POINT"; then
-    sudo mount "$KINDLE_DEV" "$MOUNT_POINT"
-fi
-
-sudo rm -f "$MOUNT_POINT/linkss/screensavers/"*
-sudo cp "$PROJECT_DIR/dashboard.png" "$MOUNT_POINT/linkss/screensavers/"
-
-sync
-
-sudo umount "$MOUNT_POINT"
-
-sleep 2
-sudo udisksctl power-off -b /dev/sda || true
-
-echo "Dashboard updated. Put Kindle to sleep to show the new image."
+echo "Dashboard updated."

@@ -7,6 +7,8 @@ import os
 import socket
 import re
 
+SERVER = "hmasi@192.168.1.111"
+
 WIDTH = 824
 HEIGHT = 1200
 
@@ -58,7 +60,7 @@ def get_fail2ban_status():
         output = subprocess.check_output(
             [
                 "ssh",
-                "hmasi@192.168.1.11",
+                SERVER,
                 "sudo -n fail2ban-client status"
             ],
             timeout=10
@@ -76,7 +78,7 @@ def get_fail2ban_status():
                 jail_output = subprocess.check_output(
                     [
                         "ssh",
-                        "hmasi@192.168.1.11",
+                        SERVER,
                         f"sudo -n fail2ban-client status {jail}"
                     ],
                     timeout=10
@@ -112,7 +114,7 @@ def get_docker_status():
         output = subprocess.check_output(
             [
                 "ssh",
-                "hmasi@192.168.1.11",
+                SERVER,
                 "docker ps --format '{{.Names}}'"
             ],
             timeout=10
@@ -129,7 +131,7 @@ def get_docker_status():
         unhealthy_output = subprocess.check_output(
             [
                 "ssh",
-                "hmasi@192.168.1.11",
+                SERVER,
                 "docker ps --filter health=unhealthy --format '{{.Names}}'"
             ],
             timeout=10
@@ -158,12 +160,39 @@ def get_docker_status():
             str(e)[:30]
         )
 
+def get_nginx_status():
+    try:
+        output = subprocess.check_output(
+            ["ssh", SERVER, "systemctl is-active nginx"],
+            timeout=10
+        ).decode().strip()
+
+        return output
+    except Exception:
+        return "Unavailable"
+
+
+def get_security_log_status():
+    try:
+        output = subprocess.check_output(
+            [
+                "ssh",
+                SERVER,
+                r"""tail -1000 /var/log/nginx/access.log | grep -Eic 'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc'"""
+            ],
+            timeout=10
+        ).decode().strip()
+
+        return f"{output} suspicious / last 1000"
+    except Exception:
+        return "Unavailable"
+
 def get_recent_attack_paths():
     try:
         output = subprocess.check_output(
             [
                 "ssh",
-                "hmasi@192.168.1.11",
+                SERVER,
                 r"""grep -Ei 'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc' /var/log/nginx/access.log | tail -3"""
             ],
             timeout=10
@@ -177,10 +206,37 @@ def get_recent_attack_paths():
             if match:
                 paths.append(match.group(1))
 
+        paths = list(dict.fromkeys(paths))
+
         return paths[:3]
 
     except Exception:
         return ["Unavailable"]
+
+def get_top_attacker_ip():
+    try:
+        output = subprocess.check_output(
+            [
+                "ssh",
+                SERVER,
+                r"""tail -5000 /var/log/nginx/access.log | grep -Ei 'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc' | awk '{print $1}' | sort | uniq -c | sort -nr | head -1"""
+            ],
+            timeout=10
+        ).decode().strip()
+
+        if not output:
+            return "none"
+
+        parts = output.split()
+        if len(parts) >= 2:
+            count = parts[0]
+            ip = parts[1]
+            return f"{ip} ({count} hits)"
+
+        return "none"
+
+    except Exception:
+        return "Unavailable"
 
 now = datetime.now()
 hostname = socket.gethostname()
@@ -188,6 +244,9 @@ ip = get_ip()
 fail2ban_jails, fail2ban_banned, latest_banned_ip  = get_fail2ban_status()
 docker_count, docker_health = get_docker_status()
 recent_paths = get_recent_attack_paths()
+top_attacker_ip = get_top_attacker_ip()
+nginx_status = get_nginx_status()
+security_log_status = get_security_log_status()
 
 load1, load5, load15 = os.getloadavg()
 ram = psutil.virtual_memory()
@@ -197,7 +256,12 @@ disk_percent = disk.used / disk.total * 100
 # Header
 text(35, 30, "Kindle SOC Dashboard", font_title)
 text(35, 85, now.strftime("%A %d.%m.%Y  %H:%M"), font_text)
-text(35, 125, f"Node: {hostname}  |  IP: {ip}", font_small)
+text(
+    35,
+    125,
+    f"Dashboard: {hostname} ({ip})  |  Target: rpi4 (192.168.1.111)",
+    font_small
+)
 line(165)
 
 # System box
@@ -211,33 +275,32 @@ text(55, 425, f"Disk usage:      {disk_percent:.1f}%")
 text(55, 475, f"Uptime:          {get_uptime()}")
 
 # Service box
-box(35, 535, 789, 910)
+box(35, 535, 789, 860)
 text(55, 555, "INFRASTRUCTURE", font_section)
 
 text(55, 615, f"Fail2ban:        {fail2ban_jails} / {fail2ban_banned}")
 text(55, 665, f"Docker:          {docker_count}")
 text(55, 715, f"Container state: {docker_health}")
-text(55, 765, "Nginx:           pending remote data")
-text(55, 815, "Security logs:   pending remote data")
+text(55, 765, f"Nginx:           {nginx_status}")
+text(55, 815, f"Security logs:   {security_log_status}")
 
 # Security box
-box(35, 940, 789, 1180)
-text(55, 960, "SECURITY SNAPSHOT", font_section)
+box(35, 875, 789, 1170)
+text(55, 905, "SECURITY SNAPSHOT", font_section)
 
-text(55, 1010, f"Latest banned IP:      {latest_banned_ip}")
-text(55, 1060, "Recent attack paths:")
+text(55, 955, f"Latest banned IP:      {latest_banned_ip}")
+text(55, 1005, f"Top attacker IP:       {top_attacker_ip}")
+text(55, 1055, "Recent attack paths:")
 
-y = 1100
+y = 1095
 
 for path in recent_paths:
     text(75, y, path, font_small)
-    y += 30
-
-text(55, 1110, "Banned IPs:            pending")
+    y += 35
 
 # Footer
-line(1190)
-text(35, 1210, "Generated by Raspberry Pi 3", font_small)
+# line(1170)
+# text(35, 1178, "Generated by Raspberry Pi 3", font_small)
 
 img.save("dashboard.png")
 print("dashboard.png generated")
