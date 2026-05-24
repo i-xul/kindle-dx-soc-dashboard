@@ -157,6 +157,23 @@ This effectively turns the Kindle DX into a continuously updating low-power infr
 - Investigate Lab126 framework signaling
 - Investigate direct framebuffer or e-ink refresh control
 
+## Documentation
+
+Additional technical notes and troubleshooting details:
+
+- [Kindle Debugging Notes](docs/kindle-debugging-notes.md)
+- [systemd Timer Setup](docs/systemd-timer.md)
+- [USB Ethernet After Reboot](docs/usb-ethernet-reboot.md)
+
+These documents include:
+
+- Kindle USBNetwork reverse engineering
+- Dropbear SSH authentication troubleshooting
+- Kindle power management behavior
+- Automated screensaver refresh workflow
+- USB Ethernet persistence handling
+- systemd timer automation
+
 ## Current Limitations
 
 - Fully automatic screensaver refresh without using the physical sleep button is still under investigation.
