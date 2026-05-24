@@ -142,6 +142,21 @@ This effectively turns the Kindle DX into a continuously updating low-power infr
 
 ![Kindle DX Dashboard](images/dashboard-preview.jpg)
 
+## Roadmap
+
+### High Priority
+
+- Test Kindle DX WiFi connectivity on a modern home network
+- Enable SSH/SCP access to the Kindle over WiFi
+- Convert the dashboard update pipeline from USB Ethernet to LAN/WiFi
+- Run the Kindle as a standalone e-paper SOC display with only power connected
+
+### Later / Experimental
+
+- Investigate direct screensaver refresh without Home screen transition
+- Investigate Lab126 framework signaling
+- Investigate direct framebuffer or e-ink refresh control
+
 ## Current Limitations
 
 - Fully automatic screensaver refresh without using the physical sleep button is still under investigation.
