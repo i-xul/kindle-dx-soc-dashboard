@@ -119,6 +119,25 @@ to force the Kindle framework to reload the updated image.
 
 This behavior appears to be related to proprietary Lab126 framework caching and e-paper refresh handling.
 
+### Scheduled Automatic Updates
+
+The dashboard refresh pipeline is now fully automated through a user-level systemd timer on the Raspberry Pi 3.
+
+Current refresh interval:
+
+```text
+every 15 minutes
+```
+
+The timer automatically:
+
+1. Generates a fresh dashboard image
+2. Transfers the image to the Kindle DX over SCP
+3. Detects the current Kindle power state
+4. Performs the required screensaver refresh sequence automatically
+
+This effectively turns the Kindle DX into a continuously updating low-power infrastructure monitoring appliance.
+
 ## 📸 Preview
 
 ![Kindle DX Dashboard](images/dashboard-preview.jpg)
