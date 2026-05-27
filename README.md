@@ -24,6 +24,10 @@ The dashboard is rendered with Python and Pillow on a Raspberry Pi 3, copied to 
 
 ## Current Architecture
 
+### Hardware Prototype
+
+![Kindle DX + Pi Zero W](images/kindle-zero-w-setup.jpg)
+
 ```text
 Remote server / Raspberry Pi infrastructure
         |
