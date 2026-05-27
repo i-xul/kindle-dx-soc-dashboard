@@ -157,6 +157,52 @@ This effectively turns the Kindle DX into a continuously updating low-power infr
 - Investigate Lab126 framework signaling
 - Investigate direct framebuffer or e-ink refresh control
 
+## Standalone Pi Zero W Bridge Mode
+
+The project was later migrated from a Raspberry Pi 3 test setup to a dedicated Raspberry Pi Zero W bridge device.
+
+Current architecture:
+
+```text
+Raspberry Pi 4 (monitored server)
+        ↓ WiFi / LAN
+Raspberry Pi Zero W
+        ↓ USB Ethernet
+Kindle DX Graphite
+```
+
+The Pi Zero W now handles:
+
+- dashboard rendering
+- SSH telemetry collection
+- Fail2ban and Nginx analysis
+- SCP image transfer
+- Kindle screensaver refresh triggering
+- automated systemd timer refreshes
+
+This removes the dependency on a separate development workstation and turns the setup into a mostly standalone embedded monitoring device.
+
+### Pi Zero W Responsibilities
+
+- Connects to the home network over WiFi
+- Maintains USB Ethernet connectivity to the Kindle
+- Generates `dashboard.png`
+- Pushes the image to the Kindle over SCP
+- Triggers Kindle screensaver refreshes automatically
+
+### Current Hardware Layout
+
+```text
+Kindle DX Graphite
++
+Raspberry Pi Zero W
++
+single power connection
+```
+
+The Kindle itself does not use native WiFi networking.  
+Instead, the Pi Zero W acts as the network-aware bridge device.
+
 ## Documentation
 
 Additional technical notes and troubleshooting details:
@@ -173,6 +219,7 @@ These documents include:
 - Automated screensaver refresh workflow
 - USB Ethernet persistence handling
 - systemd timer automation
+- Standalone Pi Zero W bridge deployment
 
 ## Current Limitations
 
