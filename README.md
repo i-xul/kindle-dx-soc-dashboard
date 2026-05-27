@@ -210,6 +210,7 @@ Additional technical notes and troubleshooting details:
 - [Kindle Debugging Notes](docs/kindle-debugging-notes.md)
 - [systemd Timer Setup](docs/systemd-timer.md)
 - [USB Ethernet After Reboot](docs/usb-ethernet-reboot.md)
+- [Pi Zero W Bridge Mode](docs/pi-zero-w-bridge.md)
 
 These documents include:
 
