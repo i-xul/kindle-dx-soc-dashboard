@@ -2,12 +2,15 @@
 
 A repurposed Amazon Kindle DX Graphite used as an e-paper SOC-style dashboard for monitoring self-hosted Raspberry Pi infrastructure.
 
-The dashboard is rendered with Python and Pillow on a Raspberry Pi 3, copied to the Kindle over USB mass storage, and displayed through the Kindle's custom screensaver system.
+The dashboard is rendered with Python and Pillow on a Raspberry Pi Zero W, transferred to the Kindle DX Graphite over USB Ethernet using SCP, and displayed through the Kindle's custom screensaver system.
+
+The project originally began as a Raspberry Pi 3 based development and reverse engineering environment before being migrated to a dedicated Raspberry Pi Zero W standalone bridge device.
 
 ## Features
 
 - 9.7" e-paper infrastructure dashboard
-- Raspberry Pi 3 based image rendering
+- Originally developed on Raspberry Pi 3
+- Current standalone Raspberry Pi Zero W bridge architecture
 - Kindle DX Graphite repurposing
 - Python + Pillow dashboard generation
 - Remote Fail2ban status over SSH
@@ -18,7 +21,8 @@ The dashboard is rendered with Python and Pillow on a Raspberry Pi 3, copied to 
 ## Hardware
 
 - Amazon Kindle DX Graphite
-- Raspberry Pi 3
+- Raspberry Pi 3 (original development platform)
+- Raspberry Pi Zero W (current standalone bridge device)
 - USB cable
 - Raspberry Pi OS Lite Legacy / Bullseye
 
@@ -28,20 +32,18 @@ The dashboard is rendered with Python and Pillow on a Raspberry Pi 3, copied to 
 
 ![Kindle DX + Pi Zero W](images/kindle-zero-w-setup.jpg)
 
+Current standalone Raspberry Pi Zero W bridge prototype.
+
+Early reverse engineering and dashboard development was originally performed on a Raspberry Pi 3 test setup before the project was migrated to a dedicated Pi Zero W bridge architecture.
+
+Current architecture:
+
 ```text
-Remote server / Raspberry Pi infrastructure
-        |
-        | SSH
-        v
-Raspberry Pi 3
-        |
-        | Python dashboard renderer
-        v
-dashboard.png
-        |
-        | USB mass storage
-        v
-Kindle DX Graphite screensaver
+Raspberry Pi 4 (monitored server)
+        ↓ WiFi / LAN
+Raspberry Pi Zero W
+        ↓ USB Ethernet
+Kindle DX Graphite
 ```
 
 ## SSH / USBNetwork Breakthrough
@@ -150,9 +152,10 @@ This effectively turns the Kindle DX into a continuously updating low-power infr
 
 ### High Priority
 
-- Test Kindle DX WiFi connectivity on a modern home network
-- Enable SSH/SCP access to the Kindle over WiFi
-- Convert the dashboard update pipeline from USB Ethernet to LAN/WiFi
+- Improve standalone Pi Zero W hardware integration
+- Investigate direct Kindle e-paper refresh methods
+- Eliminate Home screen transition during refresh
+- Improve embedded deployment reliability
 - Run the Kindle as a standalone e-paper SOC display with only power connected
 
 ### Later / Experimental
@@ -232,14 +235,22 @@ These documents include:
 - Kindle power management and screensaver triggering behavior are controlled by proprietary Lab126 framework components.
 - Some `lipc` power management properties are readable but not writable on firmware 2.5.5.
 - The Kindle framework does not automatically switch to screensaver mode after a framework restart.
-- The project currently relies on a USB connection between the Raspberry Pi and the Kindle.
+- The current standalone architecture relies on USB Ethernet connectivity between the Raspberry Pi Zero W and the Kindle DX Graphite.
 
 ## Lessons Learned
 
 - Kindle DX USB networking was unreliable on this specific firmware/device combination.
 - Raspberry Pi OS Bullseye proved significantly more stable than newer Bookworm releases for this embedded use case.
 - E-paper UI design requires much larger spacing and simpler layouts than traditional displays.
-- USB mass-storage based updates turned out to be more reliable than attempting direct SSH control of the Kindle.
+- SCP-based dashboard transfers over USB Ethernet proved significantly more reliable and flexible than the earlier USB mass-storage workflow.
+
+## Tested Hardware
+
+- Kindle DX Graphite (D00801)
+- Raspberry Pi Zero W
+- Raspberry Pi 3
+- Raspberry Pi 4
+- Raspberry Pi OS Bullseye
 
 ## Status
 
