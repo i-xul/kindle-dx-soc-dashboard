@@ -78,7 +78,7 @@ This enables direct file transfer with `scp` and remote control experiments thro
   - `preventScreenSaver`
 - `powerButton` is not available as a writable property on this firmware.
 - `framework restart` alone does not automatically trigger screensaver mode.
-- Automatic screensaver refresh without using the physical sleep button is still under investigation.
+- Direct Kindle screensaver refresh without the temporary Home screen transition is still under investigation.
 
 ### Kindle system details
 
