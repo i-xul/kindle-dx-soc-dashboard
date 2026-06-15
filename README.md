@@ -231,7 +231,7 @@ These documents include:
 
 ## Current Limitations
 
-- Fully automatic screensaver refresh without using the physical sleep button is still under investigation.
+- Direct Kindle screensaver refresh without the temporary Home screen transition is still under investigation.
 - Kindle power management and screensaver triggering behavior are controlled by proprietary Lab126 framework components.
 - Some `lipc` power management properties are readable but not writable on firmware 2.5.5.
 - The Kindle framework does not automatically switch to screensaver mode after a framework restart.
