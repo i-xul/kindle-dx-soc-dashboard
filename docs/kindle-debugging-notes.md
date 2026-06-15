@@ -297,3 +297,68 @@ Important lessons included:
 - reverse engineering existing embedded utilities can be more effective than replacing them
 
 The final result is a fully automated e-paper infrastructure dashboard running on repurposed Kindle hardware.
+
+---
+
+# Kindle Reverted to USB Drive Mode
+
+At one point the Kindle unexpectedly reverted to USB Drive Mode instead of appearing as a USB Ethernet gadget.
+
+Symptoms on the Raspberry Pi Zero W:
+
+```text
+No usb0 interface
+Kindle appears as USB mass storage
+/dev/sda1 appears
+USB Drive Mode shown on Kindle screen
+```
+
+`dmesg` showed:
+
+```text
+usb-storage
+sda: sda1
+```
+
+The USBNetwork hack was still installed, but automatic USB networking had been disabled.
+
+The key file was:
+
+```text
+/mnt/us/usbnet/DISABLED_auto
+```
+
+The USBNetwork package documentation explains that renaming this file enables USB Ethernet mode by default.
+
+Fix:
+
+```bash
+sudo mount /dev/sda1 /mnt/kindle
+sudo mv /mnt/kindle/usbnet/DISABLED_auto /mnt/kindle/usbnet/auto
+sync
+sudo umount /mnt/kindle
+```
+
+Then reboot the Kindle and reconnect USB.
+
+Expected result:
+
+```text
+Linux-USB Ethernet/RNDIS Gadget
+usb0
+```
+
+After this, the Pi Zero W can configure the USB Ethernet link again:
+
+```bash
+sudo ip addr add 192.168.2.1/24 dev usb0
+ping -c 3 192.168.2.2
+```
+
+Successful SSH test:
+
+```bash
+ssh -i ~/.ssh/id_rsa root@192.168.2.2
+```
+
+This issue is now documented because it can look like a broken USBNetwork installation, even though the fix is only restoring the `auto` marker file.
