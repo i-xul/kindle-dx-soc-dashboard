@@ -73,6 +73,7 @@ def get_fail2ban_status():
 
             total_banned = 0
             banned_ips = []
+            jail_ban_counts = {}
 
             for jail in jails:
                 jail_output = subprocess.check_output(
@@ -87,7 +88,9 @@ def get_fail2ban_status():
                 banned_match = re.search(r"Currently banned:\s*(\d+)", jail_output)
 
                 if banned_match:
-                    total_banned += int(banned_match.group(1))
+                    banned_count = int(banned_match.group(1))
+                    total_banned += banned_count
+                    jail_ban_counts[jail] = banned_count
 
                 ip_match = re.search(r"Banned IP list:\s*(.*)", jail_output)
 
@@ -97,17 +100,21 @@ def get_fail2ban_status():
 
             latest_ip = banned_ips[-1] if banned_ips else "none"
 
+            top_jail = "none"
+            if jail_ban_counts:
+                top_jail = max(jail_ban_counts, key=jail_ban_counts.get)
 
             return (
                 f"{len(jails)} jails",
                 f"{total_banned} banned",
-                latest_ip
+                latest_ip,
+                top_jail
             )
 
     except Exception as e:
-        return ("Unavailable", "Unavailable", str(e)[:30])
+        return ("Unavailable", "Unavailable", str(e)[:30], "Unavailable")
 
-    return ("Unavailable", "Unavailable", "Unavailable")
+    return ("Unavailable", "Unavailable", "Unavailable", "Unavailable")
 
 def get_docker_status():
     try:
@@ -241,7 +248,7 @@ def get_top_attacker_ip():
 now = datetime.now()
 hostname = socket.gethostname()
 ip = get_ip()
-fail2ban_jails, fail2ban_banned, latest_banned_ip  = get_fail2ban_status()
+fail2ban_jails, fail2ban_banned, latest_banned_ip, top_fail2ban_jail  = get_fail2ban_status()
 docker_count, docker_health = get_docker_status()
 recent_paths = get_recent_attack_paths()
 top_attacker_ip = get_top_attacker_ip()
@@ -290,13 +297,14 @@ text(55, 905, "SECURITY SNAPSHOT", font_section)
 
 text(55, 955, f"Latest banned IP:      {latest_banned_ip}")
 text(55, 1005, f"Top attacker IP:       {top_attacker_ip}")
-text(55, 1055, "Recent attack paths:")
+text(55, 1055, f"Top Fail2ban jail:     {top_fail2ban_jail}")
+paths_text = " | ".join(recent_paths)
 
-y = 1095
+text(55, 1105, "Recent attack paths:")
 
-for path in recent_paths:
-    text(75, y, path, font_small)
-    y += 35
+paths_text = " | ".join(recent_paths)
+
+text(340, 1108, paths_text, font_small)
 
 # Footer
 # line(1170)
