@@ -208,6 +208,12 @@ def get_security_status(security_log_status):
     except Exception:
         return "UNKNOWN"
 
+def get_suspicious_count(security_log_status):
+    try:
+        return security_log_status.split()[0]
+    except Exception:
+        return "N/A"
+
 def get_recent_attack_paths():
     try:
         output = subprocess.check_output(
@@ -269,6 +275,7 @@ top_attacker_ip = get_top_attacker_ip()
 nginx_status = get_nginx_status()
 security_log_status = get_security_log_status()
 security_status = get_security_status(security_log_status)
+suspicious_count = get_suspicious_count(security_log_status)
 
 load1, load5, load15 = os.getloadavg()
 ram = psutil.virtual_memory()
@@ -307,20 +314,21 @@ text(55, 650, f"Nginx:      {nginx_status}")
 text(55, 690, f"Security:   {security_log_status}")
 
 # Security box
-box(35, 750, 789, 1048)
+box(35, 750, 789, 1090)
 text(55, 770, "SECURITY SNAPSHOT", font_section)
 
-text(55, 825, f"Status: {security_status}")
-text(55, 870, f"Latest banned IP:      {latest_banned_ip}")
-text(55, 915, f"Top attacker IP:       {top_attacker_ip}")
-text(55, 960, f"Top Fail2ban jail:     {top_fail2ban_jail}")
+text(55, 825, f"Status:            {security_status}")
+text(55, 870, f"Latest banned IP:  {latest_banned_ip}")
+text(55, 915, f"Top attacker IP:   {top_attacker_ip}")
+text(55, 960, f"Top Fail2ban jail: {top_fail2ban_jail}")
+text(55, 1005, f"Suspicious:       {suspicious_count} / last 1000")
 paths_text = " | ".join(recent_paths)
 
-text(55, 1005, "Recent attack paths:")
+text(55, 1050, "Recent attack paths:")
 
 paths_text = " | ".join(recent_paths)
 
-text(340, 1008, paths_text, font_small)
+text(340, 1053, paths_text, font_small)
 
 # Footer
 # line(1170)
