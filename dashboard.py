@@ -194,6 +194,20 @@ def get_security_log_status():
     except Exception:
         return "Unavailable"
 
+def get_security_status(security_log_status):
+    try:
+        suspicious_count = int(security_log_status.split()[0])
+
+        if suspicious_count >= 500:
+            return "ACTIVE ATTACK"
+        elif suspicious_count >= 100:
+            return "ELEVATED"
+        else:
+            return "NORMAL"
+
+    except Exception:
+        return "UNKNOWN"
+
 def get_recent_attack_paths():
     try:
         output = subprocess.check_output(
@@ -254,6 +268,7 @@ recent_paths = get_recent_attack_paths()
 top_attacker_ip = get_top_attacker_ip()
 nginx_status = get_nginx_status()
 security_log_status = get_security_log_status()
+security_status = get_security_status(security_log_status)
 
 load1, load5, load15 = os.getloadavg()
 ram = psutil.virtual_memory()
@@ -262,49 +277,50 @@ disk_percent = disk.used / disk.total * 100
 
 # Header
 text(35, 30, "Kindle SOC Dashboard", font_title)
-text(35, 85, now.strftime("%A %d.%m.%Y  %H:%M"), font_text)
-text(
-    35,
-    125,
-    f"Dashboard: {hostname} ({ip})  |  Target: rpi4 (192.168.1.111)",
-    font_small
-)
-line(165)
+
+upd_text = now.strftime("Upd: %d.%m.%Y %H:%M")
+upd_bbox = draw.textbbox((0, 0), upd_text, font=font_small)
+upd_width = upd_bbox[2] - upd_bbox[0]
+text(WIDTH - 35 - upd_width, 42, upd_text, font_small)
+
+text(35, 95, "Zero W | RPi 4", font_small)
+line(135)
 
 # System box
-box(35, 195, 789, 520)
-text(55, 215, "SYSTEM STATUS", font_section)
+box(35, 160, 789, 435)
+text(55, 180, "SYSTEM STATUS", font_section)
 
-text(55, 275, f"CPU temperature: {get_cpu_temp()}")
-text(55, 325, f"Load average:    {load1:.2f} / {load5:.2f} / {load15:.2f}")
-text(55, 375, f"RAM usage:       {ram.percent:.1f}%")
-text(55, 425, f"Disk usage:      {disk_percent:.1f}%")
-text(55, 475, f"Uptime:          {get_uptime()}")
+text(55, 235, f"CPU:  {get_cpu_temp()}")
+text(55, 275, f"Load: {load1:.2f} / {load5:.2f} / {load15:.2f}")
+text(55, 315, f"RAM:  {ram.percent:.1f}%")
+text(55, 355, f"Disk: {disk_percent:.1f}%")
+text(55, 395, f"Up:   {get_uptime()}")
 
 # Service box
-box(35, 535, 789, 860)
-text(55, 555, "INFRASTRUCTURE", font_section)
+box(35, 455, 789, 730)
+text(55, 475, "INFRASTRUCTURE", font_section)
 
-text(55, 615, f"Fail2ban:        {fail2ban_jails} / {fail2ban_banned}")
-text(55, 665, f"Docker:          {docker_count}")
-text(55, 715, f"Container state: {docker_health}")
-text(55, 765, f"Nginx:           {nginx_status}")
-text(55, 815, f"Security logs:   {security_log_status}")
+text(55, 530, f"Fail2ban:   {fail2ban_jails} / {fail2ban_banned}")
+text(55, 570, f"Docker:     {docker_count}")
+text(55, 610, f"Containers: {docker_health}")
+text(55, 650, f"Nginx:      {nginx_status}")
+text(55, 690, f"Security:   {security_log_status}")
 
 # Security box
-box(35, 875, 789, 1170)
-text(55, 905, "SECURITY SNAPSHOT", font_section)
+box(35, 750, 789, 1048)
+text(55, 770, "SECURITY SNAPSHOT", font_section)
 
-text(55, 955, f"Latest banned IP:      {latest_banned_ip}")
-text(55, 1005, f"Top attacker IP:       {top_attacker_ip}")
-text(55, 1055, f"Top Fail2ban jail:     {top_fail2ban_jail}")
+text(55, 825, f"Status: {security_status}")
+text(55, 870, f"Latest banned IP:      {latest_banned_ip}")
+text(55, 915, f"Top attacker IP:       {top_attacker_ip}")
+text(55, 960, f"Top Fail2ban jail:     {top_fail2ban_jail}")
 paths_text = " | ".join(recent_paths)
 
-text(55, 1105, "Recent attack paths:")
+text(55, 1005, "Recent attack paths:")
 
 paths_text = " | ".join(recent_paths)
 
-text(340, 1108, paths_text, font_small)
+text(340, 1008, paths_text, font_small)
 
 # Footer
 # line(1170)
