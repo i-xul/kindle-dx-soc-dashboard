@@ -302,6 +302,9 @@ text(55, 275, f"Load: {load1:.2f} / {load5:.2f} / {load15:.2f}")
 text(55, 315, f"RAM:  {ram.percent:.1f}%")
 text(55, 355, f"Disk: {disk_percent:.1f}%")
 text(55, 395, f"Up:   {get_uptime()}")
+text(620, 230, r" /\_/\ ", font_small)
+text(615, 255, r"( o.o )", font_small)
+text(607, 280, r" > ^ < ", font_small)
 
 # Service box
 box(35, 455, 789, 730)
