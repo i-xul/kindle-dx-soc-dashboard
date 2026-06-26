@@ -100,6 +100,8 @@ fsp on /mnt/us type fuse.fsp
 
 These mountpoints appear to be directly related to the Kindle framework's screensaver handling.
 
+
+
 ## Fully Automated Screensaver Refresh
 
 The Kindle dashboard refresh process is now fully automated over SSH.
@@ -255,3 +257,29 @@ These documents include:
 ## Status
 
 Working prototype.
+
+## Notes
+
+### Boot Sequence
+
+For reliable USB networking between the Raspberry Pi Zero W and Kindle DXG, use the following startup order:
+
+1. Boot the Raspberry Pi Zero W.
+2. Boot the Kindle **without the USB cable connected**.
+3. Wait until the Kindle reaches the Home screen (or dashboard).
+4. Connect the USB cable between the Kindle and the Raspberry Pi Zero W.
+5. Verify that the USB network is available:
+
+```bash
+ping 192.168.2.2
+```
+
+If the Kindle responds, the dashboard can be updated normally.
+
+> **Note**
+>
+> If the USB network does not initialize correctly, disconnect the USB cable, reboot both the Raspberry Pi Zero W and the Kindle, wait until the Kindle has fully booted, and then reconnect the USB cable.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
