@@ -178,41 +178,78 @@ def get_nginx_status():
     except Exception:
         return "Unavailable"
 
-
-def get_security_log_status():
+def get_security_status(suspicious_1h, suspicious_24h):
     try:
-        output = subprocess.check_output(
-            [
-                "ssh",
-                SERVER,
-                r"""tail -1000 /var/log/nginx/access.log | grep -Eic 'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc'"""
-            ],
-            timeout=10
-        ).decode().strip()
+        one_hour = int(suspicious_1h)
+        one_day = int(suspicious_24h)
 
-        return f"{output} suspicious / last 1000"
-    except Exception:
-        return "Unavailable"
-
-def get_security_status(security_log_status):
-    try:
-        suspicious_count = int(security_log_status.split()[0])
-
-        if suspicious_count >= 500:
+        if one_hour >= 20:
             return "ACTIVE ATTACK"
-        elif suspicious_count >= 100:
+
+        elif one_hour >= 5:
             return "ELEVATED"
+
+        elif one_day >= 100:
+            return "ELEVATED"
+
         else:
             return "NORMAL"
 
     except Exception:
         return "UNKNOWN"
 
-def get_suspicious_count(security_log_status):
+def get_suspicious_time_counts():
     try:
-        return security_log_status.split()[0]
+        output = subprocess.check_output(
+            [
+                "ssh",
+                SERVER,
+                r"""python3 - <<'PY'
+import re
+from datetime import datetime, timezone, timedelta
+
+log_file = "/var/log/nginx/access.log"
+pattern = re.compile(r'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc', re.I)
+time_pattern = re.compile(r'\[(.*?)\]')
+
+now = datetime.now().astimezone()
+one_hour_ago = now - timedelta(hours=1)
+one_day_ago = now - timedelta(hours=24)
+
+count_1h = 0
+count_24h = 0
+
+with open(log_file, "r", errors="ignore") as f:
+    for line in f:
+        if not pattern.search(line):
+            continue
+
+        match = time_pattern.search(line)
+        if not match:
+            continue
+
+        try:
+            ts = datetime.strptime(match.group(1), "%d/%b/%Y:%H:%M:%S %z")
+        except ValueError:
+            continue
+
+        if ts >= one_day_ago:
+            count_24h += 1
+
+        if ts >= one_hour_ago:
+            count_1h += 1
+
+print(f"{count_1h},{count_24h}")
+PY"""
+            ],
+            timeout=10
+        ).decode().strip()
+
+        one_hour, one_day = output.split(",")
+        return one_hour, one_day
+
     except Exception:
-        return "N/A"
+        return "N/A", "N/A"
 
 def get_recent_attack_paths():
     try:
@@ -273,10 +310,22 @@ docker_count, docker_health = get_docker_status()
 recent_paths = get_recent_attack_paths()
 top_attacker_ip = get_top_attacker_ip()
 nginx_status = get_nginx_status()
-security_log_status = get_security_log_status()
-security_status = get_security_status(security_log_status)
-suspicious_count = get_suspicious_count(security_log_status)
+suspicious_1h, suspicious_24h = get_suspicious_time_counts()
+security_status = get_security_status(
+    suspicious_1h,
+    suspicious_24h
+)
+if security_status == "NORMAL":
+    cat_face = "^.^"
 
+elif security_status == "ELEVATED":
+    cat_face = "o.o"
+
+elif security_status == "ACTIVE ATTACK":
+    cat_face = "O.O"
+
+else:
+    cat_face = "?.?"
 load1, load5, load15 = os.getloadavg()
 ram = psutil.virtual_memory()
 disk = shutil.disk_usage("/")
@@ -303,7 +352,7 @@ text(55, 315, f"RAM:  {ram.percent:.1f}%")
 text(55, 355, f"Disk: {disk_percent:.1f}%")
 text(55, 395, f"Up:   {get_uptime()}")
 text(620, 230, r" /\_/\ ", font_small)
-text(615, 255, r"( o.o )", font_small)
+text(615, 255, f"({cat_face})", font_small)
 text(607, 280, r" > ^ < ", font_small)
 
 # Service box
@@ -314,7 +363,6 @@ text(55, 530, f"Fail2ban:   {fail2ban_jails} / {fail2ban_banned}")
 text(55, 570, f"Docker:     {docker_count}")
 text(55, 610, f"Containers: {docker_health}")
 text(55, 650, f"Nginx:      {nginx_status}")
-text(55, 690, f"Security:   {security_log_status}")
 
 # Security box
 box(35, 750, 789, 1090)
@@ -324,7 +372,7 @@ text(55, 825, f"Status:            {security_status}")
 text(55, 870, f"Latest banned IP:  {latest_banned_ip}")
 text(55, 915, f"Top attacker IP:   {top_attacker_ip}")
 text(55, 960, f"Top Fail2ban jail: {top_fail2ban_jail}")
-text(55, 1005, f"Suspicious:       {suspicious_count} / last 1000")
+text(55, 1005, f"Suspicious:       {suspicious_1h} / 1h   {suspicious_24h} / 24h")
 paths_text = " | ".join(recent_paths)
 
 text(55, 1050, "Recent attack paths:")
