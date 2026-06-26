@@ -18,21 +18,26 @@ fi
 
 scp -i "$KINDLE_KEY" dashboard.png "$KINDLE_HOST:$KINDLE_SCREEN_DIR/"
 
-STATE=$(ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "lipc-get-prop com.lab126.powerd state" | tr -d '\r')
+# STATE=$(ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "lipc-get-prop com.lab126.powerd state" | tr -d '\r')
 
-echo "Kindle power state: $STATE"
+# echo "Kindle power state: $STATE"
 
-if [ "$STATE" = "active" ]; then
-    ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
-    echo "Kindle moved to screensaver mode."
-elif [ "$STATE" = "screenSaver" ]; then
-    ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
-    sleep 3
-    ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
-    echo "Kindle refreshed screensaver mode."
-else
-    echo "Unknown Kindle power state: $STATE"
-    echo "Not toggling power button."
-fi
+# if [ "$STATE" = "active" ]; then
+#     ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
+#     echo "Kindle moved to screensaver mode."
+# elif [ "$STATE" = "screenSaver" ]; then
+#     ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
+#     sleep 3
+#     ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "powerd_test -p"
+#     echo "Kindle refreshed screensaver mode."
+# else
+#     echo "Unknown Kindle power state: $STATE"
+#     echo "Not toggling power button."
+# fi
+
+ssh -i "$KINDLE_KEY" "$KINDLE_HOST" \
+    "/usr/sbin/eips -f -g /mnt/us/linkss/screensavers/dashboard.png"
+
+echo "Dashboard refreshed with eips."
 
 echo "Dashboard updated."
