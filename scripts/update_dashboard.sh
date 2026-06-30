@@ -1,4 +1,16 @@
 #!/bin/bash
+#
+# Kindle DX SOC Dashboard
+#
+# Author: H A (i-xul)
+# Repository: https://github.com/i-xul/kindle-dx-soc-dashboard
+#
+# Created: 2026-05-19
+# Current version: v1.0.0
+#
+# Description:
+# Generates and deploys the latest dashboard image to the Kindle DXG.
+#
 
 set -e
 
