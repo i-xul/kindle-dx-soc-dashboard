@@ -1,22 +1,52 @@
 # Kindle DX SOC Dashboard
 
-A repurposed Amazon Kindle DX Graphite used as an e-paper SOC-style dashboard for monitoring self-hosted Raspberry Pi infrastructure.
+A Raspberry Pi powered Security Operations Center (SOC) dashboard for the Amazon Kindle DX Graphite.
 
-The dashboard is rendered with Python and Pillow on a Raspberry Pi Zero W, transferred to the Kindle DX Graphite over USB Ethernet using SCP, and displayed through the Kindle's custom screensaver system.
+![Kindle DX SOC Dashboard](images/dashboard-v1.0.0.jpg)
 
-The project originally began as a Raspberry Pi 3 based development and reverse engineering environment before being migrated to a dedicated Raspberry Pi Zero W standalone bridge device.
+The Kindle DX SOC Dashboard turns a jailbroken Amazon Kindle DX Graphite into a dedicated e-paper security monitoring display.
+
+The dashboard is generated on a Raspberry Pi Zero W using live infrastructure and security data collected from a Raspberry Pi 4. It provides an always-on overview of system health, Docker services, Fail2ban statistics, Nginx status and external attack activity.
+
+The display is updated over Kindle USBNetwork using SSH, SCP and direct e-ink rendering with `eips`.
+
+## Technology Stack
+
+| Component | Technology |
+|----------|------------|
+| Display | Amazon Kindle DX Graphite |
+| Dashboard | Python + Pillow |
+| Bridge | Raspberry Pi Zero W |
+| Monitoring | Raspberry Pi 4 |
+| Transport | SSH / SCP |
+| Display refresh | `eips` |
+| Security | Fail2ban + Nginx |
+
+Tested on:
+
+- Kindle DX Graphite (Firmware 2.5.5)
 
 ## Features
 
-- 9.7" e-paper infrastructure dashboard
-- Originally developed on Raspberry Pi 3
-- Current standalone Raspberry Pi Zero W bridge architecture
-- Kindle DX Graphite repurposing
-- Python + Pillow dashboard generation
-- Remote Fail2ban status over SSH
-- Docker container status over SSH
-- Nginx/security log section prepared for future use
-- USB mass-storage based update pipeline
+- 9.7" e-paper SOC-style dashboard
+- Raspberry Pi Zero W dashboard generator
+- Raspberry Pi 4 infrastructure monitoring target
+- Python + Pillow dashboard rendering
+- Direct Kindle e-ink refresh using `eips`
+- USBNetwork based SSH/SCP update pipeline
+- Docker container health monitoring
+- Fail2ban jail and ban statistics
+- Nginx status monitoring
+- External attack detection from Nginx access logs
+- Security status classification
+- Attack activity classification
+- Attack trend indicator (`^`, `=`, `v`)
+- Unique attacker IP statistics (1h / 24h)
+- Recent attack path summary
+- Top attacker IP
+- Top Fail2ban jail
+- `Upd` / `Chk` timestamps
+- ASCII SOC Cat visual status indicator
 
 ## Hardware
 
@@ -26,25 +56,86 @@ The project originally began as a Raspberry Pi 3 based development and reverse e
 - USB cable
 - Raspberry Pi OS Lite Legacy / Bullseye
 
-## Current Architecture
+## Architecture
 
-### Hardware Prototype
+### Hardware
 
 ![Kindle DX + Pi Zero W](images/kindle-zero-w-setup.jpg)
 
-Current standalone Raspberry Pi Zero W bridge prototype.
+The Raspberry Pi Zero W acts as a dedicated dashboard bridge between the monitored infrastructure and the Kindle DX Graphite.
 
-Early reverse engineering and dashboard development was originally performed on a Raspberry Pi 3 test setup before the project was migrated to a dedicated Pi Zero W bridge architecture.
-
-Current architecture:
+The Raspberry Pi 4 hosts the monitored services while the Raspberry Pi Zero W periodically collects the required information, renders the dashboard and updates the Kindle display over USB Ethernet.
 
 ```text
-Raspberry Pi 4 (monitored server)
-        ↓ WiFi / LAN
-Raspberry Pi Zero W
-        ↓ USB Ethernet
-Kindle DX Graphite
+Internet
+      │
+      ▼
+ Raspberry Pi 4
+ ├── Docker
+ ├── Fail2ban
+ ├── Nginx
+ └── Security logs
+      │
+      │ SSH
+      ▼
+ Raspberry Pi Zero W
+ ├── Python
+ ├── Pillow
+ ├── SHA-256 fingerprint
+ └── Dashboard generator
+      │
+      │ USB Ethernet
+      ▼
+ Kindle DX Graphite
 ```
+
+### Components
+
+| Device | Purpose |
+|--------|---------|
+| Raspberry Pi 4 | Monitored infrastructure host |
+| Raspberry Pi Zero W | Dashboard generation and Kindle bridge |
+| Kindle DX Graphite | Dedicated e-ink SOC display |
+
+## Dashboard Overview
+
+The dashboard is divided into three main sections:
+
+| Section | Description |
+|---------|-------------|
+| **System Status** | Local Raspberry Pi Zero W health including CPU temperature, load average, memory usage, disk usage and uptime. |
+| **Infrastructure** | Status of monitored Raspberry Pi 4 services including Docker, Fail2ban and Nginx. |
+| **Security Snapshot** | Live security summary showing attack status, trend, activity, recent attackers and attack statistics. |
+
+### Security indicators
+
+| Indicator | Meaning |
+|----------|---------|
+| **Status** | Overall security classification (NORMAL / ELEVATED / ACTIVE ATTACK). |
+| **Trend** | Whether attack activity is increasing (`^`), stable (`=`) or decreasing (`v`). |
+| **Activity** | Human-readable summary of the current attack level (Quiet / Scanning / Heavy probing). |
+| **1h / 24h** | Suspicious requests detected during the last hour and last 24 hours. |
+| **IPs** | Number of unique attacking IP addresses. |
+| **Latest ban** | Most recently banned IP address by Fail2ban. |
+| **Top IP** | Most active attacking IP address. |
+| **Top jail** | Fail2ban jail with the highest ban count. |
+| **Recent** | Most recent suspicious request paths detected from Nginx logs. |
+
+## SOC Cat – Visual Security Indicator
+
+The dashboard includes a small ASCII cat ("SOC Cat") that provides an immediate visual indication of the current security posture.
+
+Rather than displaying raw metrics alone, the cat reflects the overall system state based on the current security status, attack trend and activity level.
+
+| Face | Meaning |
+|------|---------|
+| `^.^` | Quiet system with normal activity |
+| `o.o` | Increased activity or scanning detected |
+| `O.O` | Elevated security state |
+| `>.<` | Active attack with increasing activity |
+| `-.-` | Situation stabilizing after elevated activity |
+
+SOC Cat is intentionally subtle. It acts as a quick visual indicator while the detailed metrics remain available in the Security Snapshot section.
 
 ## SSH / USBNetwork Breakthrough
 
@@ -78,7 +169,6 @@ This enables direct file transfer with `scp` and remote control experiments thro
   - `preventScreenSaver`
 - `powerButton` is not available as a writable property on this firmware.
 - `framework restart` alone does not automatically trigger screensaver mode.
-- Direct Kindle screensaver refresh without the temporary Home screen transition is still under investigation.
 
 ### Kindle system details
 
@@ -102,16 +192,59 @@ These mountpoints appear to be directly related to the Kindle framework's screen
 
 
 
-## Fully Automated Screensaver Refresh
+## Intelligent Dashboard Refresh
 
-The Kindle dashboard refresh process is now fully automated over SSH.
+The Raspberry Pi Zero W updates the Kindle dashboard fully over SSH.
 
-The Raspberry Pi 3:
+The refresh workflow is:
 
-1. Generates a new dashboard image with Python/Pillow
-2. Transfers the image directly to the Kindle over SCP
-3. Detects the current Kindle power state through `lipc`
-4. Triggers Kindle power button events through `powerd_test`
+1. Generate a new dashboard image with Python/Pillow.
+2. Build a SHA-256 fingerprint from monitored dashboard data.
+3. Compare the fingerprint with the previous execution.
+4. If nothing has changed, skip the Kindle refresh.
+5. If monitored data has changed:
+   - transfer the new image with `scp`
+   - refresh the Kindle display directly using `eips`
+
+This minimizes unnecessary e-ink refreshes while keeping the displayed information current.
+
+## Boot Sequence
+
+For reliable USB networking between the Raspberry Pi Zero W and the Kindle DX Graphite, use the following startup order:
+
+1. Boot the Raspberry Pi Zero W.
+2. Wait until the Raspberry Pi Zero W has fully started (SSH available).
+3. Boot the Kindle **without the USB cable connected**.
+4. Wait until the Kindle reaches the Home screen.
+5. Connect the USB cable between the Kindle and the Raspberry Pi Zero W.
+6. Verify that the USB network is available:
+
+```bash
+ping 192.168.2.2
+```
+
+If the Kindle responds, the dashboard can be updated normally.
+
+> **Note**
+>
+> During development it was discovered that connecting the Kindle too early may prevent the USB Ethernet interface from initializing correctly.
+>
+> If the USB network does not appear:
+>
+> - disconnect the USB cable
+> - reboot both the Raspberry Pi Zero W and the Kindle
+> - wait until both devices have fully booted
+> - reconnect the USB cable
+
+### Dashboard timestamps
+
+Two timestamps are shown in the dashboard header:
+
+- **Upd** — Last time monitored data actually changed.
+- **Chk** — Last time the dashboard checked the monitored system.
+
+This makes it possible to distinguish between a stable system and a stalled dashboard process.
+
 
 ### Important behavior
 
@@ -139,78 +272,37 @@ every 15 minutes
 
 The timer automatically:
 
-1. Generates a fresh dashboard image
-2. Transfers the image to the Kindle DX over SCP
-3. Detects the current Kindle power state
-4. Performs the required screensaver refresh sequence automatically
+1. Generates a fresh dashboard image.
+2. Builds a SHA-256 fingerprint from the monitored dashboard data.
+3. Skips the refresh if nothing has changed.
+4. Transfers the updated image to the Kindle DX over `scp`.
+5. Refreshes the e-ink display directly using `eips`.
 
-This effectively turns the Kindle DX into a continuously updating low-power infrastructure monitoring appliance.
-
-## 📸 Preview
-
-![Kindle DX SOC Dashboard](images/dashboard-v1.0.0.jpg)
+This effectively turns the Kindle DX into a low-power, always-on SOC dashboard with intelligent refresh logic that minimizes unnecessary e-ink updates.
 
 ## Roadmap
 
-### High Priority
+The project will continue to evolve as a dedicated Raspberry Pi powered SOC dashboard.
 
-- Improve standalone Pi Zero W hardware integration
-- Investigate direct Kindle e-paper refresh methods
-- Eliminate Home screen transition during refresh
-- Improve embedded deployment reliability
-- Run the Kindle as a standalone e-paper SOC display with only power connected
+### Planned
 
-### Later / Experimental
+- Historical attack statistics
+- Attack history database (SQLite)
+- Long-term attack trend analysis
+- Improved SOC Cat behavior
+- Infrastructure health scoring
+- Additional security indicators
+- Architecture diagram
+- Dashboard customization options
 
-- Investigate direct screensaver refresh without Home screen transition
-- Investigate Lab126 framework signaling
-- Investigate direct framebuffer or e-ink refresh control
+### Future ideas
 
-## Standalone Pi Zero W Bridge Mode
-
-The project was later migrated from a Raspberry Pi 3 test setup to a dedicated Raspberry Pi Zero W bridge device.
-
-Current architecture:
-
-```text
-Raspberry Pi 4 (monitored server)
-        ↓ WiFi / LAN
-Raspberry Pi Zero W
-        ↓ USB Ethernet
-Kindle DX Graphite
-```
-
-The Pi Zero W now handles:
-
-- dashboard rendering
-- SSH telemetry collection
-- Fail2ban and Nginx analysis
-- SCP image transfer
-- Kindle screensaver refresh triggering
-- automated systemd timer refreshes
-
-This removes the dependency on a separate development workstation and turns the setup into a mostly standalone embedded monitoring device.
-
-### Pi Zero W Responsibilities
-
-- Connects to the home network over WiFi
-- Maintains USB Ethernet connectivity to the Kindle
-- Generates `dashboard.png`
-- Pushes the image to the Kindle over SCP
-- Triggers Kindle screensaver refreshes automatically
-
-### Current Hardware Layout
-
-```text
-Kindle DX Graphite
-+
-Raspberry Pi Zero W
-+
-single power connection
-```
-
-The Kindle itself does not use native WiFi networking.  
-Instead, the Pi Zero W acts as the network-aware bridge device.
+- GeoIP based attack statistics
+- Country distribution
+- Daily / weekly summaries
+- Telegram integration
+- Web-based dashboard
+- Multiple monitored hosts
 
 ## Documentation
 
@@ -244,7 +336,7 @@ These documents include:
 - Kindle DX USB networking was unreliable on this specific firmware/device combination.
 - Raspberry Pi OS Bullseye proved significantly more stable than newer Bookworm releases for this embedded use case.
 - E-paper UI design requires much larger spacing and simpler layouts than traditional displays.
-- SCP-based dashboard transfers over USB Ethernet proved significantly more reliable and flexible than the earlier USB mass-storage workflow.
+SCP-based dashboard transfers over USB Ethernet combined with direct `eips` rendering proved significantly more reliable, faster and simpler than the earlier USB mass-storage and power-button based workflow.
 
 ## Tested Hardware
 
@@ -256,29 +348,7 @@ These documents include:
 
 ## Status
 
-Working prototype.
-
-## Notes
-
-### Boot Sequence
-
-For reliable USB networking between the Raspberry Pi Zero W and Kindle DXG, use the following startup order:
-
-1. Boot the Raspberry Pi Zero W.
-2. Boot the Kindle **without the USB cable connected**.
-3. Wait until the Kindle reaches the Home screen (or dashboard).
-4. Connect the USB cable between the Kindle and the Raspberry Pi Zero W.
-5. Verify that the USB network is available:
-
-```bash
-ping 192.168.2.2
-```
-
-If the Kindle responds, the dashboard can be updated normally.
-
-> **Note**
->
-> If the USB network does not initialize correctly, disconnect the USB cable, reboot both the Raspberry Pi Zero W and the Kindle, wait until the Kindle has fully booted, and then reconnect the USB cable.
+Current stable release: v1.0.0
 
 ## License
 
