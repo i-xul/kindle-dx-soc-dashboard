@@ -148,7 +148,7 @@ This effectively turns the Kindle DX into a continuously updating low-power infr
 
 ## 📸 Preview
 
-![Kindle DX Dashboard](images/dashboard-preview.jpg)
+![Kindle DX SOC Dashboard](images/dashboard-v1.0.0.jpg)
 
 ## Roadmap
 
