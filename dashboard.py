@@ -104,128 +104,182 @@ def get_ip():
 # Remote infrastructure and security data
 # ----------------------------------------------------------------------
 
-def get_fail2ban_status():
+def get_remote_dashboard_data():
+    """
+    Collect all monitored infrastructure data with a single SSH connection.
+
+    Keeping all remote data collection in one place minimizes connection
+    overhead and provides a clean separation between data collection and
+    dashboard rendering.
+    """
+
     try:
         output = subprocess.check_output(
             [
                 "ssh",
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=10",
                 SERVER,
-                "sudo -n fail2ban-client status"
-            ],
+                r"""python3 - <<'PY'
+import json
+import re
+import subprocess
+from datetime import datetime, timedelta
+
+log_file = "/var/log/nginx/access.log"
+pattern = re.compile(r'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc', re.I)
+time_pattern = re.compile(r'\[(.*?)\]')
+ip_pattern = re.compile(r'^(\S+)')
+
+data = {}
+
+# Fail2ban
+try:
+    status = subprocess.check_output(
+        ["sudo", "-n", "fail2ban-client", "status"],
+        timeout=10
+    ).decode()
+
+    jail_match = re.search(r"Jail list:\s*(.*)", status)
+    jails = [j.strip() for j in jail_match.group(1).split(",")] if jail_match else []
+
+    total_banned = 0
+    banned_ips = []
+    jail_ban_counts = {}
+
+    for jail in jails:
+        jail_output = subprocess.check_output(
+            ["sudo", "-n", "fail2ban-client", "status", jail],
             timeout=10
         ).decode()
 
-        jail_match = re.search(r"Jail list:\s*(.*)", output)
+        banned_match = re.search(r"Currently banned:\s*(\d+)", jail_output)
+        banned_count = int(banned_match.group(1)) if banned_match else 0
+        total_banned += banned_count
+        jail_ban_counts[jail] = banned_count
 
-        if jail_match:
-            jails = [j.strip() for j in jail_match.group(1).split(",")]
+        ip_match = re.search(r"Banned IP list:\s*(.*)", jail_output)
+        if ip_match:
+            banned_ips.extend(ip_match.group(1).split())
 
-            total_banned = 0
-            banned_ips = []
-            jail_ban_counts = {}
+    data["fail2ban_jails"] = f"{len(jails)} jails"
+    data["fail2ban_banned"] = f"{total_banned} banned"
+    data["latest_banned_ip"] = banned_ips[-1] if banned_ips else "none"
+    data["top_fail2ban_jail"] = max(jail_ban_counts, key=jail_ban_counts.get) if jail_ban_counts else "none"
 
-            for jail in jails:
-                jail_output = subprocess.check_output(
-                    [
-                        "ssh",
-                        SERVER,
-                        f"sudo -n fail2ban-client status {jail}"
-                    ],
-                    timeout=10
-                ).decode()
+except Exception as e:
+    data["fail2ban_jails"] = "Unavailable"
+    data["fail2ban_banned"] = "Unavailable"
+    data["latest_banned_ip"] = str(e)[:30]
+    data["top_fail2ban_jail"] = "Unavailable"
 
-                banned_match = re.search(r"Currently banned:\s*(\d+)", jail_output)
+# Docker
+try:
+    containers = subprocess.check_output(
+        ["docker", "ps", "--format", "{{.Names}}"],
+        timeout=10
+    ).decode().splitlines()
 
-                if banned_match:
-                    banned_count = int(banned_match.group(1))
-                    total_banned += banned_count
-                    jail_ban_counts[jail] = banned_count
+    unhealthy = subprocess.check_output(
+        ["docker", "ps", "--filter", "health=unhealthy", "--format", "{{.Names}}"],
+        timeout=10
+    ).decode().splitlines()
 
-                ip_match = re.search(r"Banned IP list:\s*(.*)", jail_output)
+    data["docker_count"] = f"{len([c for c in containers if c.strip()])} running"
+    data["docker_health"] = f"UNHEALTHY: {unhealthy[0]}" if unhealthy else "All healthy"
 
-                if ip_match:
-                    ips = ip_match.group(1).split()
-                    banned_ips.extend(ips)
+except Exception as e:
+    data["docker_count"] = "Unavailable"
+    data["docker_health"] = str(e)[:30]
 
-            latest_ip = banned_ips[-1] if banned_ips else "none"
+# Nginx
+try:
+    data["nginx_status"] = subprocess.check_output(
+        ["systemctl", "is-active", "nginx"],
+        timeout=10
+    ).decode().strip()
+except Exception:
+    data["nginx_status"] = "Unavailable"
 
-            top_jail = "none"
-            if jail_ban_counts:
-                top_jail = max(jail_ban_counts, key=jail_ban_counts.get)
+# Nginx suspicious activity
+try:
+    now = datetime.now().astimezone()
+    one_hour_ago = now - timedelta(hours=1)
+    one_day_ago = now - timedelta(hours=24)
 
-            return (
-                f"{len(jails)} jails",
-                f"{total_banned} banned",
-                latest_ip,
-                top_jail
-            )
+    count_1h = 0
+    count_24h = 0
+    ips_1h = set()
+    ips_24h = set()
+    recent_paths = []
+    top_ip_counts = {}
 
-    except Exception as e:
-        return ("Unavailable", "Unavailable", str(e)[:30], "Unavailable")
+    with open(log_file, "r", errors="ignore") as f:
+        lines = f.readlines()[-10000:]
 
-    return ("Unavailable", "Unavailable", "Unavailable", "Unavailable")
+    for line in lines:
+        if not pattern.search(line):
+            continue
 
-def get_docker_status():
-    try:
-        output = subprocess.check_output(
-            [
-                "ssh",
-                SERVER,
-                "docker ps --format '{{.Names}}'"
+        time_match = time_pattern.search(line)
+        ip_match = ip_pattern.search(line)
+        path_match = re.search(r'"[A-Z]+\s+([^ ]+)', line)
+
+        if path_match:
+            recent_paths.append(path_match.group(1))
+
+        if ip_match:
+            ip = ip_match.group(1)
+            top_ip_counts[ip] = top_ip_counts.get(ip, 0) + 1
+
+        if not time_match or not ip_match:
+            continue
+
+        try:
+            ts = datetime.strptime(time_match.group(1), "%d/%b/%Y:%H:%M:%S %z")
+        except ValueError:
+            continue
+
+        ip = ip_match.group(1)
+
+        if ts >= one_day_ago:
+            count_24h += 1
+            ips_24h.add(ip)
+
+        if ts >= one_hour_ago:
+            count_1h += 1
+            ips_1h.add(ip)
+
+    data["suspicious_1h"] = str(count_1h)
+    data["suspicious_24h"] = str(count_24h)
+    data["unique_ips_1h"] = str(len(ips_1h))
+    data["unique_ips_24h"] = str(len(ips_24h))
+    data["recent_paths"] = list(dict.fromkeys(recent_paths[-3:]))
+
+    if top_ip_counts:
+        top_ip = max(top_ip_counts, key=top_ip_counts.get)
+        data["top_attacker_ip"] = f"{top_ip} ({top_ip_counts[top_ip]} hits)"
+    else:
+        data["top_attacker_ip"] = "none"
+
+except Exception:
+    data["suspicious_1h"] = "N/A"
+    data["suspicious_24h"] = "N/A"
+    data["unique_ips_1h"] = "N/A"
+    data["unique_ips_24h"] = "N/A"
+    data["recent_paths"] = ["Unavailable"]
+    data["top_attacker_ip"] = "Unavailable"
+
+print(json.dumps(data))
+PY"""
             ],
-            timeout=10
-        ).decode()
-
-        containers = [
-            line.strip()
-            for line in output.splitlines()
-            if line.strip()
-        ]
-
-        count = len(containers)
-
-        unhealthy_output = subprocess.check_output(
-            [
-                "ssh",
-                SERVER,
-                "docker ps --filter health=unhealthy --format '{{.Names}}'"
-            ],
-            timeout=10
-        ).decode()
-
-        unhealthy = [
-            line.strip()
-            for line in unhealthy_output.splitlines()
-            if line.strip()
-        ]
-
-        if unhealthy:
-            return (
-                f"{count} running",
-                f"UNHEALTHY: {unhealthy[0]}"
-            )
-
-        return (
-            f"{count} running",
-            "All healthy"
-        )
-
-    except Exception as e:
-        return (
-            "Unavailable",
-            str(e)[:30]
-        )
-
-def get_nginx_status():
-    try:
-        output = subprocess.check_output(
-            ["ssh", SERVER, "systemctl is-active nginx"],
-            timeout=10
+            timeout=30
         ).decode().strip()
 
-        return output
+        return json.loads(output)
+
     except Exception:
-        return "Unavailable"
+        return {}
 
 # ----------------------------------------------------------------------
 # Security interpretation
@@ -267,119 +321,6 @@ def get_attack_activity(suspicious_1h, unique_ips_1h, attack_trend):
 
     except Exception:
         return "Unknown"
-
-def get_suspicious_time_counts():
-    try:
-        output = subprocess.check_output(
-            [
-                "ssh",
-                SERVER,
-                r"""python3 - <<'PY'
-import re
-from datetime import datetime, timedelta
-
-log_file = "/var/log/nginx/access.log"
-pattern = re.compile(r'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc', re.I)
-time_pattern = re.compile(r'\[(.*?)\]')
-ip_pattern = re.compile(r'^(\S+)')
-
-now = datetime.now().astimezone()
-one_hour_ago = now - timedelta(hours=1)
-one_day_ago = now - timedelta(hours=24)
-
-count_1h = 0
-count_24h = 0
-ips_1h = set()
-ips_24h = set()
-
-with open(log_file, "r", errors="ignore") as f:
-    for line in f:
-        if not pattern.search(line):
-            continue
-
-        time_match = time_pattern.search(line)
-        ip_match = ip_pattern.search(line)
-
-        if not time_match or not ip_match:
-            continue
-
-        try:
-            ts = datetime.strptime(time_match.group(1), "%d/%b/%Y:%H:%M:%S %z")
-        except ValueError:
-            continue
-
-        ip = ip_match.group(1)
-
-        if ts >= one_day_ago:
-            count_24h += 1
-            ips_24h.add(ip)
-
-        if ts >= one_hour_ago:
-            count_1h += 1
-            ips_1h.add(ip)
-
-print(f"{count_1h},{count_24h},{len(ips_1h)},{len(ips_24h)}")
-PY"""
-            ],
-            timeout=10
-        ).decode().strip()
-
-        one_hour, one_day, unique_1h, unique_24h = output.split(",")
-        return one_hour, one_day, unique_1h, unique_24h
-
-    except Exception:
-        return "N/A", "N/A", "N/A", "N/A"
-
-def get_recent_attack_paths():
-    try:
-        output = subprocess.check_output(
-            [
-                "ssh",
-                SERVER,
-                r"""grep -Ei 'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc' /var/log/nginx/access.log | tail -3"""
-            ],
-            timeout=10
-        ).decode()
-
-        paths = []
-
-        for line in output.splitlines():
-            match = re.search(r'"[A-Z]+\s+([^ ]+)', line)
-
-            if match:
-                paths.append(match.group(1))
-
-        paths = list(dict.fromkeys(paths))
-
-        return paths[:3]
-
-    except Exception:
-        return ["Unavailable"]
-
-def get_top_attacker_ip():
-    try:
-        output = subprocess.check_output(
-            [
-                "ssh",
-                SERVER,
-                r"""tail -5000 /var/log/nginx/access.log | grep -Ei 'wp-login|\.env|/admin|/phpmyadmin|/\.git|/xmlrpc' | awk '{print $1}' | sort | uniq -c | sort -nr | head -1"""
-            ],
-            timeout=10
-        ).decode().strip()
-
-        if not output:
-            return "none"
-
-        parts = output.split()
-        if len(parts) >= 2:
-            count = parts[0]
-            ip = parts[1]
-            return f"{ip} ({count} hits)"
-
-        return "none"
-
-    except Exception:
-        return "Unavailable"
 
 # ----------------------------------------------------------------------
 # Dashboard state handling
@@ -429,12 +370,24 @@ check_time = now.strftime("%d.%m.%Y %H:%M")
 hostname = socket.gethostname()
 ip = get_ip()
 
-fail2ban_jails, fail2ban_banned, latest_banned_ip, top_fail2ban_jail = get_fail2ban_status()
-docker_count, docker_health = get_docker_status()
-recent_paths = get_recent_attack_paths()
-top_attacker_ip = get_top_attacker_ip()
-nginx_status = get_nginx_status()
-suspicious_1h, suspicious_24h, unique_ips_1h, unique_ips_24h = get_suspicious_time_counts()
+remote_data = get_remote_dashboard_data()
+
+fail2ban_jails = remote_data.get("fail2ban_jails", "Unavailable")
+fail2ban_banned = remote_data.get("fail2ban_banned", "Unavailable")
+latest_banned_ip = remote_data.get("latest_banned_ip", "Unavailable")
+top_fail2ban_jail = remote_data.get("top_fail2ban_jail", "Unavailable")
+
+docker_count = remote_data.get("docker_count", "Unavailable")
+docker_health = remote_data.get("docker_health", "Unavailable")
+nginx_status = remote_data.get("nginx_status", "Unavailable")
+
+recent_paths = remote_data.get("recent_paths", ["Unavailable"])
+top_attacker_ip = remote_data.get("top_attacker_ip", "Unavailable")
+
+suspicious_1h = remote_data.get("suspicious_1h", "N/A")
+suspicious_24h = remote_data.get("suspicious_24h", "N/A")
+unique_ips_1h = remote_data.get("unique_ips_1h", "N/A")
+unique_ips_24h = remote_data.get("unique_ips_24h", "N/A")
 
 security_status = get_security_status(
     suspicious_1h,
