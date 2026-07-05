@@ -16,19 +16,28 @@ set -e
 
 PROJECT_DIR="/home/hmasi/kindle-dashboard"
 KINDLE_HOST="root@192.168.2.2"
+KINDLE_IP="192.168.2.2"
 KINDLE_KEY="/home/hmasi/.ssh/id_rsa"
 KINDLE_SCREEN_DIR="/mnt/us/linkss/screensavers"
 
+SSH_OPTS="-i $KINDLE_KEY -o BatchMode=yes -o ConnectTimeout=5"
+
 cd "$PROJECT_DIR"
 
-python3 dashboard.py
-
-if ! ping -c 1 -W 3 192.168.2.2 >/dev/null 2>&1; then
-    echo "Kindle is not reachable at 192.168.2.2. Skipping refresh."
+if ! ping -c 1 -W 3 "$KINDLE_IP" >/dev/null 2>&1; then
+    echo "Kindle is not reachable at $KINDLE_IP. Skipping refresh."
     exit 0
 fi
 
-scp -i "$KINDLE_KEY" dashboard.png "$KINDLE_HOST:$KINDLE_SCREEN_DIR/"
+python3 dashboard.py
+
+scp $SSH_OPTS dashboard.png "$KINDLE_HOST:$KINDLE_SCREEN_DIR/"
+
+ssh $SSH_OPTS "$KINDLE_HOST" \
+    "/usr/sbin/eips -f -g $KINDLE_SCREEN_DIR/dashboard.png"
+
+echo "Dashboard refreshed with eips."
+echo "Dashboard updated."
 
 # STATE=$(ssh -i "$KINDLE_KEY" "$KINDLE_HOST" "lipc-get-prop com.lab126.powerd state" | tr -d '\r')
 
