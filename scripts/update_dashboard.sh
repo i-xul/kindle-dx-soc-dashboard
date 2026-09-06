@@ -55,10 +55,3 @@ echo "Dashboard updated."
 #     echo "Unknown Kindle power state: $STATE"
 #     echo "Not toggling power button."
 # fi
-
-ssh -i "$KINDLE_KEY" "$KINDLE_HOST" \
-    "/usr/sbin/eips -f -g /mnt/us/linkss/screensavers/dashboard.png"
-
-echo "Dashboard refreshed with eips."
-
-echo "Dashboard updated."
